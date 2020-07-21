@@ -1,0 +1,40 @@
+name: Update repository's main README file
+
+on: [push]
+
+jobs:
+  README_UPDATE:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Updating README
+        run: |
+          SHELL=/bin/bash
+          LATEST_FILE=$(ls -ld -- */ | tail -1 | awk '{print $(NF)}')
+          LATEST_FILE+='README.md'
+          echo "Checking for modified README files in last commit ..."
+          if FILEPATH=$(git diff-tree --no-commit-id --name-only -r "$(git rev-parse HEAD)" | grep /README); then
+            FILEARRAY=($FILEPATH)
+            echo "Found updated README"
+            if [ ${#FILEARRAY[@]} -gt 1 ] && [ "${FILEARRAY[-1]}" = "${LATEST_FILE}" ]; then
+              cp -vp "${FILEARRAY[-1]}" README.md
+            else
+              if [ "${FILEPATH}" = "${LATEST_FILE}" ]; then
+                cp -vp "${FILEPATH}" README.md
+              else
+                echo "Not the latest README"
+                exit 0
+              fi
+            fi
+            echo "Updated README"
+            git config --global user.name 'roxbot'
+            git config --global user.email 'roxbot@users.noreply.github.com'
+            git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/"$GITHUB_REPOSITORY"
+            git commit -am 'Updated README 🤖'
+            git push origin HEAD:master
+          else
+            echo "No updates in README files."
+          fi
+          echo "✓ Done"
